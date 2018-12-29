@@ -1,9 +1,9 @@
 /*
- *  $Id: dialog.h,v 1.276 2017/01/31 23:58:06 tom Exp $
+ *  $Id: dialog.h,v 1.283 2018/06/19 22:52:11 tom Exp $
  *
  *  dialog.h -- common declarations for all dialog modules
  *
- *  Copyright 2000-2016,2017	Thomas E. Dickey
+ *  Copyright 2000-2017,2018	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -127,8 +127,8 @@
 #define USE_COLORS TRUE
 
 #ifdef HAVE_COLOR
-#define SCOLS	(COLS - (dialog_state.use_shadow ? 2 : 0))
-#define SLINES	(LINES - (dialog_state.use_shadow ? 1 : 0))
+#define SCOLS	(COLS - (dialog_state.use_shadow ? SHADOW_COLS : 0))
+#define SLINES	(LINES - (dialog_state.use_shadow ? SHADOW_ROWS : 0))
 #else
 #define SCOLS	COLS
 #define SLINES	LINES
@@ -159,11 +159,11 @@
 #define ESC		27
 #define TAB		DLG_CTRL('I')
 
-#define MARGIN 1
-#define GUTTER 2
-#define SHADOW_ROWS 1
-#define SHADOW_COLS 2
-#define ARROWS_COL  5
+#define MARGIN 1	/* width of the line drawn around each box */
+#define GUTTER 2	/* minimum columns between name/description in menu */
+#define SHADOW_ROWS 1	/* rows to reserve for window's shadow */
+#define SHADOW_COLS 2	/* columns to reserve for window's shadow */
+#define ARROWS_COL  5	/* distance from left margin to up/down arrows */
 
 #define MAX_LEN 2048
 #define BUF_SIZE (10L*1024)
@@ -390,6 +390,19 @@ extern WINDOW * dlg_wgetparent(WINDOW * /*win*/);
 #define DLGK_max (KEY_MAX + 256)
 
 /*
+ * Use attributes.
+ */
+#ifdef PDCURSES
+#define dlg_attrset(w,a)  (void) wattrset((w), (a))
+#define dlg_attron(w,a)   (void) wattron((w), (a))
+#define dlg_attroff(w,a)  (void) wattroff((w), (a))
+#else
+#define dlg_attrset(w,a)  (void) wattrset((w), (int)(a))
+#define dlg_attron(w,a)   (void) wattron((w), (int)(a))
+#define dlg_attroff(w,a)  (void) wattroff((w), (int)(a))
+#endif
+
+/*
  * Callbacks are used to implement the "background" tailbox.
  */
 struct _dlg_callback;
@@ -450,6 +463,10 @@ typedef struct {
     bool finish_string;		/* caching optimization for gauge */
     /* 1.2-20150125 */
     bool plain_buttons;		/* true to suppress button-label highlight */
+    /* 1.3-20180610 */
+    bool text_only;		/* option "--print-text-only", etc. */
+    int text_height;
+    int text_width;
 } DIALOG_STATE;
 
 extern DIALOG_STATE dialog_state;
@@ -560,6 +577,10 @@ extern DIALOG_VARS dialog_vars;
 
 #ifndef HAVE_TYPE_CHTYPE
 #define chtype long
+#endif
+
+#ifndef isblank
+#define isblank(c)       ((c) == ' ' || (c) == TAB)
 #endif
 
 #define UCH(ch)			((unsigned char)(ch))
@@ -732,6 +753,9 @@ extern void dlg_create_rc(const char * /*filename*/);
 /* treeview.c */
 extern int dlg_treeview(const char * /*title*/, const char * /*cprompt*/, int /*height*/, int /*width*/, int /*list_height*/, int /*item_no*/, DIALOG_LISTITEM * /*items*/, const char * /*states*/, int * /*depths*/, int /*flag*/, int * /*current_item*/);
 
+/* ttysize.c */
+extern int dlg_ttysize(int /* fd */, int * /* height */, int * /* width */);
+
 /* ui_getc.c */
 extern int dlg_getc(WINDOW * /*win*/, int * /*fkey*/);
 extern int dlg_getc_callbacks(int /*ch*/, int /*fkey*/, int * /*result*/);
@@ -821,11 +845,17 @@ extern int dlg_strcmp(const char * /*a*/, const char * /*b*/);
 #ifdef HAVE_DLG_TRACE
 #define DLG_TRACE(params) dlg_trace_msg params
 extern void dlg_trace_msg(const char *fmt, ...) GCC_PRINTFLIKE(1,2);
+#define DLG_TRACE2S(name,value) dlg_trace_2s (name,value)
+#define DLG_TRACE2N(name,value) dlg_trace_2n (name,value)
+extern void dlg_trace_2s(const char * /*name*/, const char * /*value*/);
+extern void dlg_trace_2n(const char * /*name*/, int /*value*/);
 extern void dlg_trace_win(WINDOW * /*win*/);
 extern void dlg_trace_chr(int /*ch*/, int /*fkey*/);
 extern void dlg_trace(const char * /*fname*/);
 #else
 #define DLG_TRACE(params) /* nothing */
+#define DLG_TRACE2S(name,value) /* nothing */
+#define DLG_TRACE2N(name,value) /* nothing */
 #define dlg_trace_win(win) /* nothing */
 #define dlg_trace_chr(ch,fkey) /* nothing */
 #define dlg_trace(fname) /* nothing */
@@ -833,6 +863,7 @@ extern void dlg_trace(const char * /*fname*/);
 
 #ifdef KEY_RESIZE
 extern void dlg_move_window(WINDOW * /*win*/, int /*height*/, int /*width*/, int /*y*/, int /*x*/);
+extern void dlg_will_resize(WINDOW * /*win*/);
 #endif
 
 /*

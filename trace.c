@@ -1,9 +1,9 @@
 /*
- *  $Id: trace.c,v 1.23 2017/01/31 00:26:04 tom Exp $
+ *  $Id: trace.c,v 1.26 2018/06/13 00:06:48 tom Exp $
  *
  *  trace.c -- implements screen-dump and keystroke-logging
  *
- *  Copyright 2007-2016,2017	Thomas E. Dickey
+ *  Copyright 2007-2017,2018	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -50,6 +50,40 @@ dlg_trace_msg(const char *fmt,...)
 	va_end(ap);
 	fflush(myFP);
     }
+}
+
+void
+dlg_trace_2s(const char *name, const char *value)
+{
+    bool first = TRUE;
+    const char *next;
+    int left, right = 0;
+
+    if (value == 0)
+	value = "<NULL>";
+
+    while (value[right] != '\0') {
+	value += right;
+	if ((next = strchr(value, '\n')) != 0) {
+	    left = (int) (next - value);
+	    right = left + 1;
+	} else {
+	    left = (int) strlen(value);
+	    right = left;
+	}
+	if (first) {
+	    first = FALSE;
+	    dlg_trace_msg("#%14s=%.*s\n", name, left, value);
+	} else {
+	    dlg_trace_msg("#+\t\t%.*s\n", left, value);
+	}
+    }
+}
+
+void
+dlg_trace_2n(const char *name, int value)
+{
+    dlg_trace_msg("#\t%7s=%d\n", name, value);
 }
 
 void
@@ -196,9 +230,11 @@ dlg_trace_chr(int ch, int fkey)
 	    if (fkey_name == 0)
 		fkey_name = "UNKNOWN";
 	}
-	fprintf(myFP, "chr %s (ch=%#x, fkey=%d)\n",
-		fkey_name,
-		ch, fkey);
+	if (ch >= 0) {
+	    fprintf(myFP, "chr %s (ch=%#x, fkey=%d)\n", fkey_name, ch, fkey);
+	} else {
+	    fprintf(myFP, "chr %s (ch=%d, fkey=%d)\n", fkey_name, ch, fkey);
+	}
 	fflush(myFP);
     }
 }
@@ -210,12 +246,13 @@ dlg_trace(const char *fname)
 	if (myFP == 0) {
 	    myFP = fopen(fname, "a");
 	    if (myFP != 0) {
-		dlg_trace_time("** opened at");
-		DLG_TRACE(("** dialog %s\n", dialog_version()));
+		dlg_trace_time("## opened at");
+		DLG_TRACE(("## dialog %s\n", dialog_version()));
+		DLG_TRACE(("## vile: confmode\n"));
 	    }
 	}
     } else if (myFP != 0) {
-	dlg_trace_time("** closed at");
+	dlg_trace_time("## closed at");
 	fclose(myFP);
 	myFP = 0;
     }

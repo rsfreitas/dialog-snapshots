@@ -1,9 +1,9 @@
 /*
- *  $Id: editbox.c,v 1.67 2016/08/28 13:35:37 tom Exp $
+ *  $Id: editbox.c,v 1.70 2018/06/19 22:57:01 tom Exp $
  *
  *  editbox.c -- implements the edit box
  *
- *  Copyright 2007-2015,2016 Thomas E. Dickey
+ *  Copyright 2007-2016,2018 Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -364,6 +364,12 @@ dlg_editbox(const char *title,
     const char **buttons = dlg_ok_labels();
     int mincols = (3 * COLS / 4);
 
+    DLG_TRACE(("# editbox args:\n"));
+    DLG_TRACE2S("title", title);
+    /* FIXME dump the rows & list */
+    DLG_TRACE2N("height", height);
+    DLG_TRACE2N("width", width);
+
     dlg_save_vars(&save_vars);
     dialog_vars.separate_output = TRUE;
 
@@ -399,7 +405,7 @@ dlg_editbox(const char *title,
     dlg_draw_bottom_box2(dialog, border_attr, border2_attr, dialog_attr);
     dlg_draw_title(dialog, title);
 
-    (void) wattrset(dialog, dialog_attr);
+    dlg_attrset(dialog, dialog_attr);
 
     /* Draw the editing field in a box */
     box_y = MARGIN + 0;
@@ -689,15 +695,16 @@ dlg_editbox(const char *title,
 		break;
 #ifdef KEY_RESIZE
 	    case KEY_RESIZE:
+		dlg_will_resize(dialog);
 		/* reset data */
 		height = old_height;
 		width = old_width;
-		/* repaint */
 		dlg_clear();
+		dlg_unregister_window(editing);
 		dlg_del_window(editing);
 		dlg_del_window(dialog);
-		refresh();
 		dlg_mouse_free_regions();
+		/* repaint */
 		goto retry;
 #endif
 	    case DLGK_TOGGLE:

@@ -1,9 +1,9 @@
 /*
- *  $Id: buildlist.c,v 1.78 2017/01/31 10:20:04 tom Exp $
+ *  $Id: buildlist.c,v 1.83 2018/06/19 22:57:01 tom Exp $
  *
  *  buildlist.c -- implements the buildlist dialog
  *
- *  Copyright 2012-2016,2017	Thomas E. Dickey
+ *  Copyright 2012-2017,2018	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -137,13 +137,13 @@ print_item(ALL_DATA * all,
 			: item->text);
 
     /* Clear 'residue' of last item */
-    (void) wattrset(win, menubox_attr);
+    dlg_attrset(win, menubox_attr);
     (void) wmove(win, row, 0);
     for (i = 0; i < getmaxx(win); i++)
 	(void) waddch(win, ' ');
 
     (void) wmove(win, row, all->check_x);
-    (void) wattrset(win, menubox_attr);
+    dlg_attrset(win, menubox_attr);
 
     if (both) {
 	dlg_print_listitem(win, item->name, climit, first, selected);
@@ -158,7 +158,7 @@ print_item(ALL_DATA * all,
     if (selected) {
 	dlg_item_help(item->help);
     }
-    (void) wattrset(win, save);
+    dlg_attrset(win, save);
 }
 
 /*
@@ -560,7 +560,7 @@ dlg_buildlist(const char *title,
     int num_states;
     bool first = TRUE;
     WINDOW *dialog;
-    char *prompt = dlg_strclone(cprompt);
+    char *prompt;
     const char **buttons = dlg_ok_labels();
     const char *widget_name = "buildlist";
 
@@ -591,11 +591,13 @@ dlg_buildlist(const char *title,
 	      : dlg_default_button());
 
     dlg_does_output();
-    dlg_tab_correct_str(prompt);
 
 #ifdef KEY_RESIZE
   retry:
 #endif
+
+    prompt = dlg_strclone(cprompt);
+    dlg_tab_correct_str(prompt);
 
     all.use_height = list_height;
     all.use_width = (2 * (dlg_calc_list_width(item_no, items)
@@ -634,7 +636,7 @@ dlg_buildlist(const char *title,
     dlg_draw_bottom_box2(dialog, border_attr, border2_attr, dialog_attr);
     dlg_draw_title(dialog, title);
 
-    (void) wattrset(dialog, dialog_attr);
+    dlg_attrset(dialog, dialog_attr);
     dlg_print_autowrap(dialog, prompt, height, width);
 
     list_width = (width - 6 * MARGIN - 2) / 2;
@@ -1090,14 +1092,16 @@ dlg_buildlist(const char *title,
 		break;
 #ifdef KEY_RESIZE
 	    case KEY_RESIZE:
+		dlg_will_resize(dialog);
 		/* reset data */
 		height = old_height;
 		width = old_width;
-		/* repaint */
+		free(prompt);
 		dlg_clear();
 		dlg_del_window(dialog);
-		refresh();
 		dlg_mouse_free_regions();
+		/* repaint */
+		first = TRUE;
 		goto retry;
 #endif
 	    default:
@@ -1181,6 +1185,16 @@ dialog_buildlist(const char *title,
     bool show_status = FALSE;
     int current = 0;
     char *help_result;
+
+    DLG_TRACE(("# buildlist args:\n"));
+    DLG_TRACE2S("title", title);
+    DLG_TRACE2S("message", cprompt);
+    DLG_TRACE2N("height", height);
+    DLG_TRACE2N("width", width);
+    DLG_TRACE2N("lheight", list_height);
+    DLG_TRACE2N("llength", item_no);
+    /* FIXME dump the items[][] too */
+    DLG_TRACE2N("order", order_mode != 0);
 
     listitems = dlg_calloc(DIALOG_LISTITEM, (size_t) item_no + 1);
     assert_ptr(listitems, THIS_FUNC);
